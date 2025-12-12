@@ -26,8 +26,6 @@
 #include <stdio.h>
 #include <string.h>
 
-/*TEST*/
-
 #include "../Sensors/AccelerationSensor/lsm6dsl.h"
 #include "../Sensors/AirPressureSensor/lps22hb.h"
 #include "../Sensors/HumiditySensor/hts221.h"
@@ -529,32 +527,31 @@ void StartDefaultTask(void *argument)
 void IMU_Task(void *argument)
 {
     HAL_StatusTypeDef HAL_status = HAL_OK;
-    LSM6DSL_RAW_VALUES lsm6dsl_raw_values;
 
     for(;;)
     {
-    	// Auf Aktivierungsflag warten
-        osThreadFlagsWait(THREAD_ACTIVATE_FLAG, osFlagsWaitAll, osWaitForever);
+        // Auf Aktivierungsflag warten
+    	osThreadFlagsWait(THREAD_ACTIVATE_FLAG, osFlagsWaitAll, osWaitForever);
+
         // I2C-Bus sichern
         osSemaphoreAcquire(I2C2availableHandle, osWaitForever);
-        // Prüfen, ob neue Daten vorliegen
+
+        // Prüfen, ob neue IMU-Daten vorliegen
         HAL_status = LSM6DSL_data_ready();
 
-        	if(HAL_status == HAL_OK)
-            	{
-					// Rohwerte auslesen und in SI umrechnenL
-        			LSM6DSL_VALUES current_imu = LSM6DSL_get_values();
-					LIS3MDL_VALUES current_mag = LIS3MDL_get_values();
+        if(HAL_status == HAL_OK)
+        {
+            // Rohwerte auslesen
+            LSM6DSL_VALUES current_imu = LSM6DSL_get_values();
 
-					// Filter
-					LSM6DSL_filtered_values = Filter_Update(current_imu);
-					LIS3MDL_filtered_values = LIS3MDL_Filter_Update(current_mag);
-                }
+            // Filter anwenden
+            LSM6DSL_filtered_values = Filter_Update(current_imu);
+        }
 
         osSemaphoreRelease(I2C2availableHandle);
+        osDelay(1); // kleine Pause zur CPU-Entlastung
     }
 }
-
 
 /* USER CODE BEGIN Header_Magneto_Task */
 /**
@@ -565,16 +562,31 @@ void IMU_Task(void *argument)
 /* USER CODE END Header_Magneto_Task */
 void Magneto_Task(void *argument)
 {
-  /* USER CODE BEGIN Magneto_Task */
-  HAL_StatusTypeDef HAL_status = HAL_OK;
-  /* Infinite loop */
-  for(;;)
-  {
-	  osThreadFlagsWait(THREAD_ACTIVATE_FLAG, osFlagsWaitAll, osWaitForever);
-	  osSemaphoreAcquire(I2C2availableHandle, osWaitForever);
-	  HAL_status = LIS3MDL_data_ready();
-  }
-  /* USER CODE END Magneto_Task */
+    HAL_StatusTypeDef HAL_status = HAL_OK;
+
+    for(;;)
+    {
+        // Auf Aktivierungsflag warten
+    	osThreadFlagsWait(THREAD_ACTIVATE_FLAG, osFlagsWaitAll, osWaitForever);
+
+        // I2C-Bus sichern
+        osSemaphoreAcquire(I2C2availableHandle, osWaitForever);
+
+        // Prüfen, ob neue Magnetometer-Daten vorliegen
+        HAL_status = LIS3MDL_data_ready();
+
+        if(HAL_status == HAL_OK)
+        {
+            // Rohwerte auslesen
+            LIS3MDL_VALUES current_mag = LIS3MDL_get_values();
+
+            // Filter anwenden
+            LIS3MDL_filtered_values = LIS3MDL_Filter_Update(current_mag);
+        }
+
+        osSemaphoreRelease(I2C2availableHandle);
+        osDelay(1); // kleine Pause zur CPU-Entlastung
+    }
 }
 
 /* USER CODE BEGIN Header_ToF_Task */
