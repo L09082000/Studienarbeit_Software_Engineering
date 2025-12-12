@@ -105,7 +105,13 @@ void Error_Handler(void);
       __typeof__ (b) _b = (b); \
     _a < _b ? _a : _b; })
 
+/* Was ist mit Thread Active Flag*/
 #define THREAD_ACTIVATE_FLAG	0x01
+#define IMU_SENSOR_THREAD_ACTIVATE_FLAG				0x01
+#define MAG_SENSOR_THREAD_ACTIVATE_FLAG				0x02
+#define BARO_SENSOR_THREAD_ACTIVATE_FLAG			0x04
+#define HUMIDITY_SENSOR_THREAD_ACTIVATE_FLAG		0x08
+#define TOF_SENSOR_THREAD_ACTIVATE_FLAG				0x10
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

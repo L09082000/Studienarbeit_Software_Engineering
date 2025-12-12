@@ -59,10 +59,6 @@ UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_rx;
 DMA_HandleTypeDef hdma_usart1_tx;
 
-/* Globale Variable für gefilterte Werte */
-LSM6DSL_FILTERED_VALUES LSM6DSL_filtered_values;
-LIS3MDL_FILTERED_VALUES LIS3MDL_filtered_values;
-
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
@@ -75,35 +71,49 @@ osThreadId_t IMUTaskHandle;
 const osThreadAttr_t IMUTask_attributes = {
   .name = "IMUTask",
   .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityAboveNormal1,
 };
 /* Definitions for MagnetoTask */
 osThreadId_t MagnetoTaskHandle;
 const osThreadAttr_t MagnetoTask_attributes = {
   .name = "MagnetoTask",
   .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityNormal2,
 };
 /* Definitions for ToFTask */
 osThreadId_t ToFTaskHandle;
 const osThreadAttr_t ToFTask_attributes = {
   .name = "ToFTask",
   .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityNormal1,
 };
 /* Definitions for BaroTask */
 osThreadId_t BaroTaskHandle;
 const osThreadAttr_t BaroTask_attributes = {
   .name = "BaroTask",
   .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityBelowNormal1,
 };
 /* Definitions for HumidityTask */
 osThreadId_t HumidityTaskHandle;
 const osThreadAttr_t HumidityTask_attributes = {
   .name = "HumidityTask",
   .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityBelowNormal1,
+};
+/* Definitions for InitTask */
+osThreadId_t InitTaskHandle;
+const osThreadAttr_t InitTask_attributes = {
+  .name = "InitTask",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal2,
+};
+/* Definitions for DataTransTask */
+osThreadId_t DataTransTaskHandle;
+const osThreadAttr_t DataTransTask_attributes = {
+  .name = "DataTransTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow7,
 };
 /* Definitions for I2C2available */
 osSemaphoreId_t I2C2availableHandle;
@@ -126,6 +136,8 @@ void Magneto_Task(void *argument);
 void ToF_Task(void *argument);
 void Baro_Task(void *argument);
 void Humidity_Task(void *argument);
+void Init_Task(void *argument);
+void Data_Transmit_Task(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -170,14 +182,6 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  vl53l0x_initialize(); /* ToF */
-  HTS221_initialize();  /* Humidity */
-  LPS22HB_initialize(); /* Barometer */
-  LSM6DSL_initialize(); /* IMU */
-  LIS3MDL_initialize(); /* Magnetometer */
-
-  Filter_Init();
-
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -221,6 +225,12 @@ int main(void)
 
   /* creation of HumidityTask */
   HumidityTaskHandle = osThreadNew(Humidity_Task, NULL, &HumidityTask_attributes);
+
+  /* creation of InitTask */
+  InitTaskHandle = osThreadNew(Init_Task, NULL, &InitTask_attributes);
+
+  /* creation of DataTransTask */
+  DataTransTaskHandle = osThreadNew(Data_Transmit_Task, NULL, &DataTransTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* terminate the default Task because it just exists because of the STM23CubeIDE configuration set it mandatory - that is not needed because
@@ -526,31 +536,13 @@ void StartDefaultTask(void *argument)
 /* USER CODE END Header_IMU_Task */
 void IMU_Task(void *argument)
 {
-    HAL_StatusTypeDef HAL_status = HAL_OK;
-
-    for(;;)
-    {
-        // Auf Aktivierungsflag warten
-    	osThreadFlagsWait(THREAD_ACTIVATE_FLAG, osFlagsWaitAll, osWaitForever);
-
-        // I2C-Bus sichern
-        osSemaphoreAcquire(I2C2availableHandle, osWaitForever);
-
-        // Prüfen, ob neue IMU-Daten vorliegen
-        HAL_status = LSM6DSL_data_ready();
-
-        if(HAL_status == HAL_OK)
-        {
-            // Rohwerte auslesen
-            LSM6DSL_VALUES current_imu = LSM6DSL_get_values();
-
-            // Filter anwenden
-            LSM6DSL_filtered_values = Filter_Update(current_imu);
-        }
-
-        osSemaphoreRelease(I2C2availableHandle);
-        osDelay(1); // kleine Pause zur CPU-Entlastung
-    }
+  /* USER CODE BEGIN IMU_Task */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END IMU_Task */
 }
 
 /* USER CODE BEGIN Header_Magneto_Task */
@@ -562,31 +554,13 @@ void IMU_Task(void *argument)
 /* USER CODE END Header_Magneto_Task */
 void Magneto_Task(void *argument)
 {
-    HAL_StatusTypeDef HAL_status = HAL_OK;
-
-    for(;;)
-    {
-        // Auf Aktivierungsflag warten
-    	osThreadFlagsWait(THREAD_ACTIVATE_FLAG, osFlagsWaitAll, osWaitForever);
-
-        // I2C-Bus sichern
-        osSemaphoreAcquire(I2C2availableHandle, osWaitForever);
-
-        // Prüfen, ob neue Magnetometer-Daten vorliegen
-        HAL_status = LIS3MDL_data_ready();
-
-        if(HAL_status == HAL_OK)
-        {
-            // Rohwerte auslesen
-            LIS3MDL_VALUES current_mag = LIS3MDL_get_values();
-
-            // Filter anwenden
-            LIS3MDL_filtered_values = LIS3MDL_Filter_Update(current_mag);
-        }
-
-        osSemaphoreRelease(I2C2availableHandle);
-        osDelay(1); // kleine Pause zur CPU-Entlastung
-    }
+  /* USER CODE BEGIN Magneto_Task */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END Magneto_Task */
 }
 
 /* USER CODE BEGIN Header_ToF_Task */
@@ -650,6 +624,63 @@ void Humidity_Task(void *argument)
 	  HAL_status = HTS221_data_ready();
   }
   /* USER CODE END Humidity_Task */
+}
+
+/* USER CODE BEGIN Header_Init_Task */
+/**
+* @brief Function implementing the InitTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_Init_Task */
+void Init_Task(void *argument)
+{
+    /* USER CODE BEGIN Init_Task */
+    /* Infinite loop */
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_DMA_Init();
+	MX_I2C2_Init();
+	MX_USART1_UART_Init();
+
+	vl53l0x_initialize(); /* ToF */
+	HTS221_initialize();  /* Humidity */
+	LPS22HB_initialize(); /* Barometer */
+	LSM6DSL_initialize(); /* IMU */
+	LIS3MDL_initialize(); /* Magnetometer */
+
+	Filter_Init();
+
+	/* initialisation done --> terminate task */
+	  osThreadTerminate(InitTaskHandle);
+  /* USER CODE END Init_Task */
+}
+
+/* USER CODE BEGIN Header_Data_Transmit_Task */
+/**
+* @brief Function implementing the DataTransTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_Data_Transmit_Task */
+void Data_Transmit_Task(void *argument)
+{
+  /* USER CODE BEGIN Data_Transmit_Task */
+  /* Infinite loop */
+	for(;;)
+	  {
+		  /* wait until both sensors provide new data */
+		  osThreadFlagsWait(IMU_SENSOR_THREAD_ACTIVATE_FLAG | MAG_SENSOR_THREAD_ACTIVATE_FLAG , osFlagsWaitAll, osWaitForever);
+		  SEGGER_SYSVIEW_PrintfHost("DataTransmit");
+		  osSemaphoreAcquire(UART1availableHandle, osWaitForever);
+
+		  memcpy(&transmit_data.acc_x, &lsm6dsl_values.acc_x, 6*sizeof(float));
+		  memcpy(&transmit_data.mag_x, &lis3mdl_values.x, 3*sizeof(float));
+		  HAL_UART_Transmit_DMA(&huart1, (const uint8_t *)&transmit_data, sizeof(transmit_data));
+		  /* the HAL function above automatically enables the half transmit interrupt that is not needed here */
+		  __HAL_DMA_DISABLE_IT(huart1.hdmatx, DMA_IT_HT );
+	  }
+  /* USER CODE END Data_Transmit_Task */
 }
 
 /**
