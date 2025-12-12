@@ -26,6 +26,8 @@
 #include <stdio.h>
 #include <string.h>
 
+/*TEST*/
+
 #include "../Sensors/AccelerationSensor/lsm6dsl.h"
 #include "../Sensors/AirPressureSensor/lps22hb.h"
 #include "../Sensors/HumiditySensor/hts221.h"
