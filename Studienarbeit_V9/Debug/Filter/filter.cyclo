@@ -1,0 +1,4 @@
+../Filter/filter.c:13:6:Filter_Init	1
+../Filter/filter.c:24:25:Filter_Update	1
+../Filter/filter.c:42:6:LIS3MDL_Filter_Init	1
+../Filter/filter.c:48:25:LIS3MDL_Filter_Update	1

@@ -1,0 +1,10 @@
+../Core/Src/main.c:509:6:StartDefaultTask	8	static
+../Core/Src/main.c:527:6:IMU_Task	120	static
+../Core/Src/main.c:564:6:Magneto_Task	8	static
+../Core/Src/main.c:585:6:ToF_Task	8	static
+../Core/Src/main.c:606:6:Baro_Task	8	static
+../Core/Src/main.c:627:6:Humidity_Task	8	static
+../Core/Src/main.c:266:6:SystemClock_Config	104	static,ignoring_inline_asm
+../Core/Src/main.c:143:5:main	56	static,ignoring_inline_asm
+../Core/Src/main.c:649:6:HAL_TIM_PeriodElapsedCallback	0	static
+../Core/Src/main.c:667:6:Error_Handler	0	static,ignoring_inline_asm
